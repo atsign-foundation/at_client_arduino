@@ -1,0 +1,10 @@
+# PlatformIO build artifacts
+.pio/
+
+# macOS
+.DS_Store
+
+# Editor directories
+.idea/
+.vscode/
+*.swp

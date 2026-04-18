@@ -15,8 +15,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install mbedTLS development headers
-        run: sudo apt-get update && sudo apt-get install -y libmbedtls-dev
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+
+      - name: Cache mbedTLS
+        id: cache-mbedtls
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/mbedtls
+          key: mbedtls-3.6.6
+
+      - name: Build and install mbedTLS 3.6.6
+        if: steps.cache-mbedtls.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.6/mbedtls-3.6.6.tar.bz2 -o mbedtls.tar.bz2
+          echo "8fb65fae8dcae5840f793c0a334860a411f884cc537ea290ce1c52bb64ca007a  mbedtls.tar.bz2" | sha256sum -c
+          tar xjf mbedtls.tar.bz2
+          cmake -S mbedtls-3.6.6 -B mbedtls-build \
+            -DCMAKE_INSTALL_PREFIX=/usr/local/mbedtls \
+            -DENABLE_PROGRAMS=OFF \
+            -DENABLE_TESTING=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -G Ninja
+          cmake --build mbedtls-build
+          sudo cmake --install mbedtls-build
+
+      - name: Export mbedTLS paths for PlatformIO
+        run: |
+          echo "MBEDTLS_CFLAGS=-I/usr/local/mbedtls/include" >> "$GITHUB_ENV"
+          echo "MBEDTLS_LDFLAGS=-L/usr/local/mbedtls/lib -Wl,-rpath,/usr/local/mbedtls/lib" >> "$GITHUB_ENV"
 
       - name: Set up Python
         uses: actions/setup-python@v5

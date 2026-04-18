@@ -10,6 +10,13 @@
 #define ATCHOPS_TARGET_ARDUINO
 #define ATCHOPS_MBEDTLS_VERSION_2
 #define ATCLIENT_SOCKET_PROVIDER_EXTERNAL
+#else
+// Native build: auto-detect mbedTLS version so tests work on both
+// Ubuntu (libmbedtls-dev ≈ v2.x) and macOS (brew ≈ v3/v4).
+#include <mbedtls/version.h>
+#if MBEDTLS_VERSION_MAJOR < 3
+#define ATCHOPS_MBEDTLS_VERSION_2
+#endif
 #endif
 
 #ifndef PRIu64
