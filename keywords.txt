@@ -1,0 +1,146 @@
+#######################################
+# Syntax Colouring Map For at_client
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+atclient	KEYWORD1
+atclient_atkeys	KEYWORD1
+atclient_atkeys_file	KEYWORD1
+atclient_atkey	KEYWORD1
+atclient_metadata	KEYWORD1
+atclient_atnotification	KEYWORD1
+atclient_monitor	KEYWORD1
+atclient_notify_params	KEYWORD1
+atclient_request_options	KEYWORD1
+atclient_authenticate_options	KEYWORD1
+atclient_connection	KEYWORD1
+atclient_connection_hooks	KEYWORD1
+atclient_get_shared_key_request_options	KEYWORD1
+atclient_put_shared_key_request_options	KEYWORD1
+atclient_get_self_key_request_options	KEYWORD1
+atclient_put_self_key_request_options	KEYWORD1
+atclient_get_public_key_request_options	KEYWORD1
+atclient_get_atkeys_request_options	KEYWORD1
+atclient_delete_request_options	KEYWORD1
+
+atchops_rsa_key	KEYWORD1
+atchops_rsa_key_params	KEYWORD1
+
+atauth_enroll_params	KEYWORD1
+atauth_enroll_request	KEYWORD1
+atauth_enroll_response	KEYWORD1
+atauth_enroll_namespace	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+# atclient lifecycle
+atclient_init	KEYWORD2
+atclient_free	KEYWORD2
+atclient_pkam_authenticate	KEYWORD2
+atclient_cram_authenticate	KEYWORD2
+atclient_is_connected	KEYWORD2
+atclient_send_heartbeat	KEYWORD2
+
+# Options
+atclient_authenticate_options_init	KEYWORD2
+atclient_authenticate_options_free	KEYWORD2
+
+# atkeys
+atclient_atkeys_init	KEYWORD2
+atclient_atkeys_free	KEYWORD2
+atclient_atkeys_populate_from_atkeys_file	KEYWORD2
+atclient_atkeys_file_init	KEYWORD2
+atclient_atkeys_file_free	KEYWORD2
+atclient_atkeys_file_from_path	KEYWORD2
+atclient_atkeys_file_from_string	KEYWORD2
+
+# atkey
+atclient_atkey_init	KEYWORD2
+atclient_atkey_free	KEYWORD2
+atclient_atkey_create_self_key	KEYWORD2
+atclient_atkey_create_public_key	KEYWORD2
+atclient_atkey_create_shared_key	KEYWORD2
+atclient_atkey_to_string	KEYWORD2
+
+# CRUD operations
+atclient_put_self_key	KEYWORD2
+atclient_get_self_key	KEYWORD2
+atclient_put_public_key	KEYWORD2
+atclient_get_public_key	KEYWORD2
+atclient_put_shared_key	KEYWORD2
+atclient_get_shared_key	KEYWORD2
+atclient_delete	KEYWORD2
+atclient_get_atkeys	KEYWORD2
+
+# monitor
+atclient_monitor_init	KEYWORD2
+atclient_monitor_free	KEYWORD2
+atclient_monitor_pkam_authenticate	KEYWORD2
+atclient_monitor_start	KEYWORD2
+atclient_monitor_read	KEYWORD2
+atclient_monitor_is_connected	KEYWORD2
+
+# notify
+atclient_notify	KEYWORD2
+atclient_notify_params_init	KEYWORD2
+atclient_notify_params_free	KEYWORD2
+atclient_atnotification_init	KEYWORD2
+atclient_atnotification_free	KEYWORD2
+
+# atauth
+atauth_onboard_command	KEYWORD2
+atauth_enroll_command	KEYWORD2
+atauth_enroll_params_init	KEYWORD2
+atauth_enroll_params_free	KEYWORD2
+atauth_enroll_request_init	KEYWORD2
+atauth_enroll_request_free	KEYWORD2
+atauth_enroll_response_init	KEYWORD2
+atauth_enroll_response_free	KEYWORD2
+
+# atchops
+atchops_rsa_sign	KEYWORD2
+atchops_rsa_verify	KEYWORD2
+atchops_rsa_encrypt	KEYWORD2
+atchops_rsa_decrypt	KEYWORD2
+atchops_aes_cbc_encrypt	KEYWORD2
+atchops_aes_cbc_decrypt	KEYWORD2
+atchops_aes_ctr_encrypt	KEYWORD2
+atchops_aes_ctr_decrypt	KEYWORD2
+atchops_sha_hash	KEYWORD2
+atchops_base64_encode	KEYWORD2
+atchops_base64_decode	KEYWORD2
+atchops_hex_encode	KEYWORD2
+atchops_hex_decode	KEYWORD2
+atchops_uuid_generate_str	KEYWORD2
+atchops_rsa_key_params_init	KEYWORD2
+atchops_rsa_key_params_free	KEYWORD2
+
+# atlogger
+atlogger_set_logging_level	KEYWORD2
+atlogger_log	KEYWORD2
+
+# atsdk setup
+atsdk_arduino_setup	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+ATLOGGER_LOGGING_LEVEL_DEBUG	LITERAL1
+ATLOGGER_LOGGING_LEVEL_INFO	LITERAL1
+ATLOGGER_LOGGING_LEVEL_WARN	LITERAL1
+ATLOGGER_LOGGING_LEVEL_ERROR	LITERAL1
+ATLOGGER_LOGGING_LEVEL_SILENT	LITERAL1
+
+ATCLIENT_MONITOR_MESSAGE_TYPE_NOTIFICATION	LITERAL1
+ATCLIENT_MONITOR_MESSAGE_TYPE_DATA_RESPONSE	LITERAL1
+ATCLIENT_MONITOR_MESSAGE_TYPE_NONE	LITERAL1
+
+ATCHOPS_AES_128	LITERAL1
+ATCHOPS_AES_192	LITERAL1
+ATCHOPS_AES_256	LITERAL1

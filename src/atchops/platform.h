@@ -1,0 +1,34 @@
+#ifndef ATCHOPS_PLATFORM_H
+#define ATCHOPS_PLATFORM_H
+
+// NOTE: there are two platform specific files:
+// - atchops/platform.h
+// - atclient/json.h
+
+// Arduino/ESP32 NoPorts embedded build (skipped when building native unit tests)
+#ifndef ATCHOPS_TARGET_NATIVE
+#define ATCHOPS_TARGET_ARDUINO
+#define ATCHOPS_MBEDTLS_VERSION_2
+#define ATCLIENT_SOCKET_PROVIDER_EXTERNAL
+#endif
+
+#ifndef PRIu64
+#define PRIu64 "llu"
+#endif
+
+#ifndef PRId64
+#define PRId64 "lld"
+#endif
+
+// Fallback platform detection (not used on Arduino, but kept for reference)
+#if !defined(ATCHOPS_TARGET_ARDUINO)
+  #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    #define ATCHOPS_TARGET_UNIX
+  #elif defined(_WIN32)
+    #define ATCHOPS_TARGET_WINDOWS
+  #elif defined(CONFIG_IDF_TARGET_ESP32)
+    #define ATCHOPS_TARGET_ESPIDF
+  #endif
+#endif
+
+#endif // ATCHOPS_PLATFORM_H
