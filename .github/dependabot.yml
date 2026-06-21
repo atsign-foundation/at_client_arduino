@@ -4,10 +4,21 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     cooldown:
       default-days: 7
     groups:
       github-actions:
         patterns:
           - "*"
+
+  # Maintain PlatformIO CLI version
+  # Note: the pioarduino platform URL pinned in platformio.ini and
+  # build_esp32p4.yml must be updated manually — Dependabot has no support
+  # for arbitrary GitHub release ZIP URLs.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7

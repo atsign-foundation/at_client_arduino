@@ -21,7 +21,7 @@ jobs:
           python-version: "3.x"
 
       - name: Install PlatformIO
-        run: pip install platformio
+        run: pip install -r requirements.txt
 
       - name: Cache PlatformIO packages
         uses: actions/cache@v4
@@ -32,4 +32,9 @@ jobs:
             ${{ runner.os }}-pio-esp32p4-
 
       - name: Compile BasicPKAMAuth example for ESP32-P4
-        run: pio ci --board=esp32-p4_r3-evboard --lib=. examples/BasicPKAMAuth/BasicPKAMAuth.ino
+        run: >-
+          pio ci
+          --board=esp32-p4_r3-evboard
+          --project-option="platform=https://github.com/pioarduino/platform-espressif32/releases/download/55.03.39/platform-espressif32.zip"
+          --lib=.
+          examples/BasicPKAMAuth/BasicPKAMAuth.ino
