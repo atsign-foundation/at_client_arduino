@@ -8,8 +8,14 @@
 // Arduino/ESP32 NoPorts embedded build (skipped when building native unit tests)
 #ifndef ATCHOPS_TARGET_NATIVE
 #define ATCHOPS_TARGET_ARDUINO
-#define ATCHOPS_MBEDTLS_VERSION_2
 #define ATCLIENT_SOCKET_PROVIDER_EXTERNAL
+// Auto-detect mbedTLS major version from the ESP-IDF header.
+// Classic ESP32/S2/S3 ship with ESP-IDF 4.x (mbedTLS 2.x).
+// ESP32-P4 and newer targets use ESP-IDF 5.x (mbedTLS 3.x).
+#include <mbedtls/version.h>
+#if MBEDTLS_VERSION_MAJOR < 3
+#define ATCHOPS_MBEDTLS_VERSION_2
+#endif
 #else
 // Native build: auto-detect mbedTLS version so tests work on both
 // Ubuntu (libmbedtls-dev ≈ v2.x) and macOS (brew ≈ v3/v4).

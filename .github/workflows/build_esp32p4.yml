@@ -1,0 +1,35 @@
+name: Build ESP32-P4
+
+on:
+  push:
+    branches: ["main", "trunk"]
+  pull_request:
+    branches: ["main", "trunk"]
+
+jobs:
+  build-esp32-p4:
+    name: Compile for ESP32-P4
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-pio-esp32p4-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-esp32p4-
+
+      - name: Compile BasicPKAMAuth example for ESP32-P4
+        run: pio ci --board=esp32-p4-function-ev-board --lib=. examples/BasicPKAMAuth/BasicPKAMAuth.ino
