@@ -13,15 +13,20 @@
 #include "atlogger/atlogger.h"
 
 // Concatenate the bundled CA certificates into a single PEM string.
-// Define ATSDK_TLS_MINIMAL_CERTS on memory-constrained devices (e.g. ESP32 with
-// display) to use only the Let's Encrypt root, saving ~10KB heap.
+// ATSDK_TLS_MINIMAL_CERTS: load only roots needed for atSign infrastructure
+// (LE + Google Trust Services) to save ~10KB heap vs the full 8-cert bundle.
+// ATSDK_USE_CERT_BUNDLE: preferred — uses the ESP-IDF full Mozilla CA bundle
+// (~130 roots from flash, zero heap cost). Requires CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y.
 #ifdef ATSDK_TLS_MINIMAL_CERTS
 static const char atclient_cacerts_pem[] =
-  LETS_ENCRYPT_ROOT;
+  LETS_ENCRYPT_ROOT
+  GOOGLE_GTS_ROOT_R1
+  GLOBALSIGN_ROOT_CA;
 #else
 static const char atclient_cacerts_pem[] =
   LETS_ENCRYPT_ROOT
   GOOGLE_GLOBAL_SIGN
+  GLOBALSIGN_ROOT_CA
   GOOGLE_GTS_ROOT_R1
   GOOGLE_GTS_ROOT_R2
   GOOGLE_GTS_ROOT_R3
