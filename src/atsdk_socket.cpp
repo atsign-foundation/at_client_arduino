@@ -12,11 +12,9 @@
 #include "atclient/cacerts.h"
 #include "atlogger/atlogger.h"
 
-// Concatenate the bundled CA certificates into a single PEM string.
-// ATSDK_TLS_MINIMAL_CERTS: load only roots needed for atSign infrastructure
-// (LE + Google Trust Services) to save ~10KB heap vs the full 8-cert bundle.
-// ATSDK_USE_CERT_BUNDLE: preferred — uses the ESP-IDF full Mozilla CA bundle
-// (~130 roots from flash, zero heap cost). Requires CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y.
+// PEM fallback bundle — used when the ESP-IDF cert bundle is not available.
+// ATSDK_TLS_MINIMAL_CERTS: 3-root subset covering atSign's known CAs (~5KB heap).
+// Default (no flag): full 8-root bundle (~15KB heap).
 #ifdef ATSDK_TLS_MINIMAL_CERTS
 static const char atclient_cacerts_pem[] =
   LETS_ENCRYPT_ROOT
@@ -71,12 +69,12 @@ int atclient_tls_socket_configure(struct atclient_tls_socket *socket,
     return 1;
   }
 
-  // Certificate verification setup.
-  // On memory-constrained devices (ESP32 with display/DMA), PEM cert parsing
-  // fragments the heap and causes mbedtls_ssl_setup() to fail.
-  // Define ATSDK_USE_CERT_BUNDLE to use the ESP-IDF built-in cert bundle
-  // which verifies from flash without heap allocation.
-#ifdef ATSDK_USE_CERT_BUNDLE
+  // Certificate verification.
+  // Prefer the ESP-IDF full Mozilla CA bundle when available: ~130 roots stored
+  // in flash, zero heap cost, updates with the framework. Automatically used
+  // when CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y is set in sdkconfig (no extra
+  // build flag needed). Falls back to the embedded PEM bundle otherwise.
+#ifdef CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
   extern const uint8_t x509_crt_bundle_start[] asm("_binary_x509_crt_bundle_start");
   client->setCACertBundle(x509_crt_bundle_start);
 #else
