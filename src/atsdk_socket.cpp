@@ -33,6 +33,7 @@ static const char atclient_cacerts_pem[] =
 #endif
 
 #include <WiFiClientSecure.h>
+#include <esp_arduino_version.h>
 #include <cstring>
 #include <cstdlib>
 
@@ -76,7 +77,13 @@ int atclient_tls_socket_configure(struct atclient_tls_socket *socket,
   // build flag needed). Falls back to the embedded PEM bundle otherwise.
 #ifdef CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
   extern const uint8_t x509_crt_bundle_start[] asm("_binary_x509_crt_bundle_start");
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+  // Core 3.x requires the bundle size alongside the pointer.
+  extern const uint8_t x509_crt_bundle_end[] asm("_binary_x509_crt_bundle_end");
+  client->setCACertBundle(x509_crt_bundle_start, x509_crt_bundle_end - x509_crt_bundle_start);
+#else
   client->setCACertBundle(x509_crt_bundle_start);
+#endif
 #else
   // Use provided CA or the built-in atclient PEM certs
   if (ca_pem != NULL && ca_pem_len > 0) {
