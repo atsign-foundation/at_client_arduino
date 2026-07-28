@@ -31,6 +31,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pio-esp32p4-
 
+      # The esp32-p4_r3-evboard board definition only exists in the pioarduino
+      # fork of the espressif32 platform. `pio ci --board` resolves board IDs
+      # before applying project options, so the platform must be installed
+      # globally first or board lookup fails.
+      - name: Install pioarduino espressif32 platform
+        run: >-
+          pio pkg install -g
+          --platform https://github.com/pioarduino/platform-espressif32/releases/download/55.03.39/platform-espressif32.zip
+
       - name: Compile BasicPKAMAuth example for ESP32-P4
         run: >-
           pio ci
