@@ -46,7 +46,10 @@ const char *WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 // The atSign to authenticate
 const char *ATSIGN = "@your_atsign";
 
-// atDirectory root server
+// atDirectory root server spec, with optional port (default 64).
+// A 'proxy:' prefix skips the atDirectory and connects to the atServer via
+// that reverse proxy instead — useful on networks where only port 443
+// egress is allowed, e.g. "proxy:proxy0001.atsign.org:443".
 const char *ROOT_DOMAIN = "root.atsign.org";
 
 // Where to write the generated atKeys on the filesystem
