@@ -138,15 +138,25 @@ int atdirectory_parse_host_port_from_buf(const char *buf, size_t len, char **hos
   memcpy(port_buf, buf + pos, len);
   port_buf[len] = 0;
 
-  *port = atoi(port_buf);
-  free(port_buf);
+  // the response is read up to and including the '\n' delimiter — trim
+  // trailing CR/LF so the strict parse below sees digits only
+  while (len > 0 && (port_buf[len - 1] == '\n' || port_buf[len - 1] == '\r')) {
+    port_buf[--len] = 0;
+  }
 
-  if (*port == 0) {
-    atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "Failed to parse port from port string\n");
+  // atoi silently wraps out-of-range ports (70000 -> 4464) and accepts
+  // trailing garbage (443x) — reject malformed responses instead
+  char *port_end = NULL;
+  long port_val = strtol(port_buf, &port_end, 10);
+  if (port_end == port_buf || *port_end != '\0' || port_val < 1 || port_val > UINT16_MAX) {
+    atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "Invalid port in host:port buffer\n");
+    free(port_buf);
     free(*host);
     *host = NULL;
     return 1;
   }
+  *port = (uint16_t)port_val;
+  free(port_buf);
 
   return 0;
 }
