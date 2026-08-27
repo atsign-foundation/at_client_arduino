@@ -12,6 +12,11 @@
  * Usage (enroll):
  *   int ret = atauth_enroll_command("@myatsign", "root.atsign.org", "/keys.atKeys",
  *                                   "123456", "myApp", "myDevice", "ns1:rw,ns2:r", NULL);
+ *
+ * The root server spec accepts an optional port (default 64) and a 'proxy:'
+ * prefix (e.g. "proxy:proxy0001.atsign.org:443") which skips the atDirectory
+ * and connects to the atServer via that reverse proxy instead — useful on
+ * networks where only port 443 egress is allowed.
  */
 #ifndef ATAUTH_H
 #define ATAUTH_H
@@ -22,6 +27,7 @@ extern "C" {
 
 #include "atauth/run_onboard_command.h" // IWYU pragma: export
 #include "atauth/run_enroll_command.h"  // IWYU pragma: export
+#include "atauth/resolve_atserver.h"    // IWYU pragma: export
 #include "atauth/apkam_keys.h"         // IWYU pragma: export
 #include "atauth/constants.h"           // IWYU pragma: export
 #include "atauth/enroll_namespace.h"    // IWYU pragma: export
