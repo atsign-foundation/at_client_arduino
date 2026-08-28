@@ -1,6 +1,6 @@
 {
   "name": "at_client",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Atsign atSDK client library for Arduino/ESP32 - atProtocol, crypto, networking, and activation. Provides atchops (crypto), atclient (atProtocol client, monitor, notifications), atauth (atsign activation/onboarding/enrollment), atlogger, and cJSON.",
   "keywords": ["atsign", "atprotocol", "iot", "security", "encryption", "e2ee", "atauth", "onboarding"],
   "repository": {
