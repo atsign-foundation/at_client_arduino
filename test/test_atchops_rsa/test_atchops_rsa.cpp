@@ -130,8 +130,16 @@ void test_rsa_encrypt_decrypt_roundtrip() {
   unsigned char ciphertext[256];
   memset(ciphertext, 0, sizeof(ciphertext));
 
+  size_t ciphertext_len = 0;
   TEST_ASSERT_EQUAL_INT(0, atchops_rsa_encrypt(
-      &pubkey, (const unsigned char *)plaintext, plaintext_len, ciphertext));
+      &pubkey, (const unsigned char *)plaintext, plaintext_len, ciphertext, sizeof(ciphertext), &ciphertext_len));
+  TEST_ASSERT_EQUAL_size_t(256, ciphertext_len);
+
+  // A ciphertext buffer smaller than the key's modulus must be rejected
+  // without writing anything (at_c issue #701)
+  unsigned char small_buffer[64];
+  TEST_ASSERT_NOT_EQUAL(0, atchops_rsa_encrypt(
+      &pubkey, (const unsigned char *)plaintext, plaintext_len, small_buffer, sizeof(small_buffer), NULL));
 
   unsigned char decrypted[256];
   memset(decrypted, 0, sizeof(decrypted));
