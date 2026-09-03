@@ -143,6 +143,29 @@ void test_parse_heap_bad_parse_leaves_buffer_intact() {
   free(heap);
 }
 
+/* ── 6a. lone "\n" (empty LF line) is dropped, not an error (issue #3) ───── */
+void test_parse_lone_lf_returns_null() {
+  char buffer[1] = {'\n'};
+  struct atserver_message msg = atserver_message_parse(buffer, 1);
+  TEST_ASSERT_NULL(msg.buffer);
+  TEST_ASSERT_EQUAL_INT(0, (int)msg.len);
+}
+
+/* ── 6b. bare "\r\n" (empty CRLF line) is dropped, not an error ──────────── */
+void test_parse_bare_crlf_returns_null() {
+  char buffer[2] = {'\r', '\n'};
+  struct atserver_message msg = atserver_message_parse(buffer, 2);
+  TEST_ASSERT_NULL(msg.buffer);
+  TEST_ASSERT_EQUAL_INT(0, (int)msg.len);
+}
+
+/* ── 6c. a lone non-newline byte is still a parse error ──────────────────── */
+void test_parse_lone_non_newline_returns_null() {
+  char buffer[1] = {'@'};
+  struct atserver_message msg = atserver_message_parse(buffer, 1);
+  TEST_ASSERT_NULL(msg.buffer);
+}
+
 /* ── main ─────────────────────────────────────────────────────────────────── */
 int main() {
   UNITY_BEGIN();
@@ -154,5 +177,8 @@ int main() {
   RUN_TEST(test_parse_empty_message_returns_null);
   RUN_TEST(test_parse_heap_buffer);
   RUN_TEST(test_parse_heap_bad_parse_leaves_buffer_intact);
+  RUN_TEST(test_parse_lone_lf_returns_null);
+  RUN_TEST(test_parse_bare_crlf_returns_null);
+  RUN_TEST(test_parse_lone_non_newline_returns_null);
   return UNITY_END();
 }
