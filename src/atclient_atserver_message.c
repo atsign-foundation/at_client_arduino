@@ -38,14 +38,23 @@ struct atserver_message atserver_message_parse(char *buffer, size_t len) {
     return EMPTY_MESSAGE;
   }
 
-  if (len > 2 && buffer[len - 2] == '\r' && buffer[len - 1] == '\n') {
+  if (len >= 2 && buffer[len - 2] == '\r' && buffer[len - 1] == '\n') {
     buffer[len - 2] = 0;
     len -= 2;
-  } else if (len > 1 && buffer[len - 1] == '\n') {
+  } else if (len >= 1 && buffer[len - 1] == '\n') {
     buffer[len - 1] = 0;
     len--;
   } else {
     atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "Invalid message: does not end with a newline\n");
+    return EMPTY_MESSAGE;
+  }
+
+  if (len == 0) {
+    // a bare "\n" or "\r\n" is a newline-terminated empty line, which the
+    // atServer sends e.g. right after the monitor subscription - it carries
+    // no message and must not be logged as an error (nor fall through to the
+    // token scan, where token_len would exceed the now-zero len)
+    atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_DEBUG, "Ignoring empty line from atServer\n");
     return EMPTY_MESSAGE;
   }
 
