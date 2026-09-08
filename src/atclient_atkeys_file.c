@@ -7,6 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if !defined(ARDUINO) && !defined(_WIN32)
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 // represents buffer size of reading the entire atKeys file
 #define FILE_READ_BUFFER_SIZE 8192
@@ -292,9 +297,32 @@ int atclient_atkeys_file_write_to_path(atclient_atkeys_file *atkeys_file, const 
     goto exit;
   }
 
+  // The file holds private key material, so on hosts with a POSIX permission
+  // model it must never be created with the default umask permissions
+  // (typically world-readable 0644). The mode passed to open() only applies
+  // when the file is created, so fchmod() is also used to tighten a
+  // pre-existing atKeys file that was written with broader permissions by an
+  // older SDK version or another tool. On-device filesystems (LittleFS/SPIFFS
+  // via the ESP32 VFS) have no permission model, so plain fopen is fine there.
+#if defined(ARDUINO) || defined(_WIN32)
   FILE *file = fopen(path, "w");
+#else
+  FILE *file = NULL;
+  const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  if (fd >= 0) {
+    if (fchmod(fd, S_IRUSR | S_IWUSR) != 0) {
+      // Not fatal: some filesystems (e.g. FAT/exFAT) do not support POSIX
+      // permissions at all, and the key material still needs to be written
+      atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_WARN, "failed to set 0600 permissions on %s\n", path);
+    }
+    file = fdopen(fd, "w");
+    if (file == NULL) {
+      close(fd);
+    }
+  }
+#endif
   if (file == NULL) {
-    atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "fopen failed\n");
+    atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "failed to open %s for writing\n", path);
     goto exit;
   }
 

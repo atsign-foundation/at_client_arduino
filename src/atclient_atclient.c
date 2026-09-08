@@ -193,6 +193,12 @@ int atclient_pkam_authenticate(atclient *ctx, const char *atsign, const atclient
 
   int ret = 1; // error by default
 
+  // ensure the output is defined on every path; it is only populated when the
+  // pkam reply is an error
+  if (err_msg != NULL) {
+    *err_msg = NULL;
+  }
+
   /*
    * 1. Validate arguments
    */
@@ -385,7 +391,14 @@ int atclient_pkam_authenticate(atclient *ctx, const char *atsign, const atclient
                  (int)recv_len, recv);
 
     if (err_msg != NULL) {
-      *err_msg = (char *)recv;
+      // heap copy: recv is a local buffer, so handing out a pointer to it
+      // would dangle as soon as this function returns (the header already
+      // documents that the caller frees this)
+      const size_t err_len = strlen((char *)recv);
+      *err_msg = (char *)malloc(err_len + 1);
+      if (*err_msg != NULL) {
+        memcpy(*err_msg, recv, err_len + 1);
+      }
     }
     goto exit;
   }
