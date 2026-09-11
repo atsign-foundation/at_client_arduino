@@ -1,10 +1,14 @@
 # at_client — atSDK for Arduino/ESP32
 
+<!-- pyml disable-num-lines 4 md013,md033-->
+<a href="https://atsign.com#gh-light-mode-only"><img width=250px src="https://atsign.com/wp-content/uploads/2022/05/atsign-logo-horizontal-color2022.svg#gh-light-mode-only" alt="The Atsign Foundation"></a><a href="https://atsign.com#gh-dark-mode-only"><img width=250px src="https://atsign.com/wp-content/uploads/2023/08/atsign-logo-horizontal-reverse2022-Color.svg#gh-dark-mode-only" alt="The Atsign Foundation"></a>
+
 ESP32 port of the [at_c SDK](https://github.com/atsign-foundation/at_c),
 providing everything needed to build atProtocol applications on Arduino.
 
 ## What's Included
 
+<!-- pyml disable-num-lines 8 md013-->
 | Component | Description |
 |---|---|
 | **atclient** | PKAM/CRAM authentication, put/get/delete for self, public, and shared keys, scan, heartbeat |
@@ -26,6 +30,7 @@ complete sketches.
 
 ## Examples
 
+<!-- pyml disable-num-lines 7 md013-->
 | Example | Description |
 |---|---|
 | **BasicPKAMAuth** | WiFi → load atkeys from LittleFS → PKAM authenticate → put/get self key → heartbeat loop |
@@ -38,10 +43,13 @@ complete sketches.
 
 ### Arduino IDE
 
-1. Download the latest release `.zip` from the [Releases](https://github.com/atsign-foundation/at_client_arduino/releases) page.
-2. In Arduino IDE: **Sketch → Include Library → Add .ZIP Library…** and select the downloaded file.
+1. Download the latest release `.zip` from the
+[Releases](https://github.com/atsign-foundation/at_client_arduino/releases) page.
+2. In Arduino IDE: **Sketch → Include Library → Add .ZIP Library…** and select
+the downloaded file.
 
-Alternatively, search for **at_client** in the **Library Manager** (**Tools → Manage Libraries…**).
+Alternatively, search for **at_client** in the **Library Manager**
+(**Tools → Manage Libraries…**).
 
 ### PlatformIO
 
@@ -114,6 +122,7 @@ void loop() {
 
 ### Authentication
 
+<!-- pyml disable-num-lines 4 md013-->
 | Function | Description |
 |---|---|
 | `atclient_pkam_authenticate()` | Authenticate with PKAM (standard) |
@@ -123,6 +132,7 @@ void loop() {
 
 ### Key Operations
 
+<!-- pyml disable-num-lines 7 md013-->
 | Function | Description |
 |---|---|
 | `atclient_put_self_key()` | Store a self-encrypted key |
