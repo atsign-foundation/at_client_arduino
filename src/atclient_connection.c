@@ -77,16 +77,20 @@ int atclient_connection_connect(atclient_connection *ctx, const char *host, cons
   atclient_connection_enable_connection(ctx);
 
   // 3. Setup ssl configuration
+  // Both failures below go through exit, which disables the connection again:
+  // a configured socket holds a TLS client and a read buffer, and returning
+  // with the connection still enabled left them for atclient_stop_atserver_connection
+  // to zero without freeing, since it only freed connections marked started.
   ret = atclient_tls_socket_configure(&ctx->_socket, NULL, 0);
   if (ret != 0) {
     atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "failed to setup ssl configuration\n");
-    return ret;
+    goto exit;
   }
 
   ret = atclient_tls_socket_connect(&ctx->_socket, host, port);
   if (ret != 0) {
     atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "failed to connect to %s:%u\n", host, port);
-    return ret;
+    goto exit;
   }
 
   atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_INFO, "Connected\n");

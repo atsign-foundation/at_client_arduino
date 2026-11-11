@@ -34,6 +34,7 @@ static const char atclient_cacerts_pem[] =
 
 #include <WiFiClientSecure.h>
 #include <esp_arduino_version.h>
+#include <lwip/sockets.h>  // setsockopt, SO_KEEPALIVE, TCP_KEEP*
 #include <cstring>
 #include <cstdlib>
 
@@ -44,6 +45,30 @@ static const char atclient_cacerts_pem[] =
 
 // Max read buffer size
 #define READ_BUF_SIZE (4 * 1024)
+
+// TCP keepalive on every TLS socket. A peer that vanishes without a FIN or
+// RST (NAT table expiry, access point restart, atServer host failure) is
+// otherwise never noticed: lwIP keeps the socket ESTABLISHED for ever and
+// every read just times out. With probes the stack errors the socket within
+// about a minute, mbedtls reports that, and the caller reconnects.
+#define ATSDK_TCP_KEEPIDLE_S  30
+#define ATSDK_TCP_KEEPINTVL_S 10
+#define ATSDK_TCP_KEEPCNT     3
+
+// A TLS handshake that stalls (half-open peer, overloaded server) blocks the
+// calling task for the framework's default 120 s, past any task watchdog.
+#define ATSDK_TLS_HANDSHAKE_TIMEOUT_S 20
+
+static void _set_tcp_keepalive(WiFiClientSecure *client) {
+  int fd = client->fd();
+  if (fd < 0) return;
+  int yes = 1;
+  int idle = ATSDK_TCP_KEEPIDLE_S, intvl = ATSDK_TCP_KEEPINTVL_S, cnt = ATSDK_TCP_KEEPCNT;
+  setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes));
+  setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle));
+  setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl));
+  setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt));
+}
 
 // ============================================================
 // TLS Socket
@@ -58,6 +83,7 @@ void atclient_tls_socket_init(struct atclient_tls_socket *socket) {
   socket->configured = 0;
   socket->connected = 0;
   socket->read_buf = NULL;
+  socket->read_buf_len = 0;
 }
 
 int atclient_tls_socket_configure(struct atclient_tls_socket *socket,
@@ -94,6 +120,7 @@ int atclient_tls_socket_configure(struct atclient_tls_socket *socket,
 #endif
 
   client->setTimeout(socket->read_timeout_ms / 1000);
+  client->setHandshakeTimeout(ATSDK_TLS_HANDSHAKE_TIMEOUT_S);
 
   // Pre-allocate the read buffer once so atclient_tls_socket_read never
   // needs to malloc on every call.  Per-read malloc was the root cause of
@@ -109,6 +136,7 @@ int atclient_tls_socket_configure(struct atclient_tls_socket *socket,
     }
   }
 
+  socket->read_buf_len = 0;
   socket->wifi_client = client;
   socket->configured = 1;
   return 0;
@@ -120,11 +148,12 @@ void atclient_tls_socket_free(struct atclient_tls_socket *socket) {
     free(socket->read_buf);
     socket->read_buf = NULL;
   }
+  socket->read_buf_len = 0;
   if (socket->wifi_client != nullptr) {
     WiFiClientSecure *client = (WiFiClientSecure *)socket->wifi_client;
-    if (client->connected()) {
-      client->stop();
-    }
+    // stop() closes the socket if it is still open and frees the TLS
+    // contexts whether or not it is; connected() would only add a probe.
+    client->stop();
     delete client;
     socket->wifi_client = nullptr;
   }
@@ -153,6 +182,8 @@ int atclient_tls_socket_connect(struct atclient_tls_socket *socket,
     return 1;
   }
 
+  _set_tcp_keepalive(client);
+  socket->read_buf_len = 0;
   socket->connected = 1;
   atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_DEBUG,
                "Connected to %s:%u\n", host, port);
@@ -165,6 +196,7 @@ int atclient_tls_socket_disconnect(struct atclient_tls_socket *socket) {
     WiFiClientSecure *client = (WiFiClientSecure *)socket->wifi_client;
     client->stop();
   }
+  socket->read_buf_len = 0;
   socket->connected = 0;
   return 0;
 }
@@ -193,102 +225,117 @@ int atclient_tls_socket_write(struct atclient_tls_socket *socket,
 int atclient_tls_socket_read(struct atclient_tls_socket *socket,
                              unsigned char **value, size_t *value_len,
                              const struct atclient_socket_read_options options) {
+  if (value != NULL) *value = NULL;
+  if (value_len != NULL) *value_len = 0;
   if (socket == NULL) return 1;
   if (socket->wifi_client == nullptr || !socket->connected) return 1;
 
   WiFiClientSecure *client = (WiFiClientSecure *)socket->wifi_client;
 
-  // Use the pre-allocated persistent read buffer (allocated once at configure
-  // time) instead of malloc/free on every call.  This prevents spurious read
-  // failures when the heap is fragmented by relay TCP pbufs.
+  // The persistent read buffer, allocated once at configure time, so a read
+  // never has to malloc while relay traffic has the heap fragmented.
   unsigned char *buf = (unsigned char *)socket->read_buf;
   if (buf == NULL) {
     atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "Read buffer not allocated\n");
     return 1;
   }
 
-  size_t pos = 0;
-  unsigned long start = millis();
-  unsigned long timeout_ms = (unsigned long)socket->read_timeout_ms;
+  // Both read modes stop at a terminator: the one asked for, or the '\n' that
+  // ends the line carrying the prompt.
+  const char until = (options.type == ATCLIENT_SOCKET_READ_UNTIL_CHAR) ? options.until_char : '\n';
 
-  if (options.type == ATCLIENT_SOCKET_READ_UNTIL_CHAR) {
-    char until = options.until_char;
-    bool have_data = false;
-
-    while (pos < READ_BUF_SIZE - 1) {
-      if (client->available()) {
-        int b = client->read();
-        if (b < 0) break;
-        buf[pos++] = (unsigned char)b;
-        if ((char)b == until) break;
-        // Reset timeout on data received
-        start = millis();
-        have_data = true;
-      } else {
-        // Use longer timeout (3x) once we have partial data
-        unsigned long effective_timeout = have_data ? (timeout_ms * 3) : timeout_ms;
-        if ((millis() - start) > effective_timeout) {
-          if (pos == 0) {
-            // No data at all — clean timeout (buf is persistent, don't free)
-            if (value != NULL) *value = NULL;
-            if (value_len != NULL) *value_len = 0;
-            return ATCLIENT_SSL_TIMEOUT_EXITCODE;
-          }
-          break;
-        }
-        delay(1);
-      }
-    }
-  } else if (options.type == ATCLIENT_SOCKET_READ_CLEAR_AT_PROMPT) {
-    // Read until we get past the @ prompt
-    while (pos < READ_BUF_SIZE - 1) {
-      if (client->available()) {
-        int b = client->read();
-        if (b < 0) break;
-        buf[pos++] = (unsigned char)b;
-        // Check if we've received the full prompt
-        if ((char)b == '\n') break;
-        start = millis();
-      } else {
-        if ((millis() - start) > timeout_ms) {
-          if (pos == 0) {
-            // No data at all — clean timeout (buf is persistent, don't free)
-            if (value != NULL) *value = NULL;
-            if (value_len != NULL) *value_len = 0;
-            return ATCLIENT_SSL_TIMEOUT_EXITCODE;
-          }
-          break;
-        }
-        delay(1);
-      }
-    }
-  }
-
-  if (pos == 0) {
-    // No data (buf is persistent, don't free)
-    if (value != NULL) *value = NULL;
-    if (value_len != NULL) *value_len = 0;
-    return ATCLIENT_SSL_TIMEOUT_EXITCODE;
-  }
-
-  // If caller doesn't want the data, just discard it (buf is persistent)
-  if (value == NULL) {
-    if (value_len != NULL) *value_len = pos;
-    return 0;
-  }
-
-  // buf is the persistent workspace — copy result into a caller-owned allocation.
-  // The at-protocol response is typically small (<200 bytes), so this malloc
-  // is tiny and succeeds even under heap fragmentation.  The caller frees *value.
-  *value = (unsigned char *)malloc(pos + 1);
-  if (*value == NULL) {
-    if (value_len != NULL) *value_len = 0;
+  // A TLS session the stack has already ended (peer close, reset, keepalive
+  // probes unanswered) can never deliver a line: say so now, rather than
+  // letting the caller wait out a timeout on every read for ever.
+  if (!client->connected()) {
+    atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_DEBUG, "Connection is closed\n");
+    socket->read_buf_len = 0;
     return 1;
   }
-  memcpy(*value, buf, pos);
-  (*value)[pos] = '\0';
-  if (value_len != NULL) *value_len = pos;
 
+  // Bytes an earlier read left behind: the start of a line it timed out
+  // inside of, or what followed the terminator it stopped at. They stay in
+  // the buffer so a message split across TCP segments is returned whole,
+  // not as two fragments that each fail to parse.
+  size_t pos = socket->read_buf_len;
+  size_t scanned = 0;
+  size_t line_len = 0; // 0 until the terminator is found
+  bool have_data = pos > 0;
+  unsigned long start = millis();
+  const unsigned long timeout_ms = (unsigned long)socket->read_timeout_ms;
+
+  for (;;) {
+    for (; scanned < pos; scanned++) {
+      if ((char)buf[scanned] == until) {
+        line_len = scanned + 1;
+        break;
+      }
+    }
+    if (line_len > 0) break;
+
+    if (pos >= READ_BUF_SIZE - 1) {
+      // No terminator within a full buffer: the line can't be returned whole,
+      // and its remainder would be taken for the next message. Drop it and
+      // fail the read, so the caller resets the connection, the only sure
+      // way back into sync with the stream.
+      atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR,
+                   "Discarding a line of over %u bytes with no terminator\n", (unsigned)pos);
+      socket->read_buf_len = 0;
+      return 1;
+    }
+
+    int avail = client->available();
+    if (avail < 0) {
+      // available() reports the TLS session ending, and has closed it
+      atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_DEBUG, "Connection closed while reading\n");
+      socket->read_buf_len = 0;
+      return 1;
+    }
+    if (avail > 0) {
+      size_t room = READ_BUF_SIZE - 1 - pos;
+      size_t want = (size_t)avail < room ? (size_t)avail : room;
+      int n = client->read(buf + pos, want);
+      if (n < 0) {
+        atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_DEBUG, "Connection closed while reading\n");
+        socket->read_buf_len = 0;
+        return 1;
+      }
+      if (n > 0) {
+        pos += (size_t)n;
+        have_data = true;
+        start = millis(); // the timeout runs from the last byte received
+      }
+      continue;
+    }
+
+    // Nothing waiting. Allow three times the timeout once part of a line is
+    // in, as a message split across segments on a lossy link arrives in
+    // pieces; a clean timeout keeps what has arrived for the next read.
+    unsigned long effective_timeout = have_data ? (timeout_ms * 3) : timeout_ms;
+    if ((millis() - start) > effective_timeout) {
+      socket->read_buf_len = pos;
+      return ATCLIENT_SSL_TIMEOUT_EXITCODE;
+    }
+    delay(1);
+  }
+
+  // Hand the line out, and keep whatever followed its terminator.
+  if (value != NULL) {
+    // The at-protocol line is typically small (<200 bytes), so this malloc
+    // is tiny and succeeds even under heap fragmentation. The caller frees it.
+    *value = (unsigned char *)malloc(line_len + 1);
+    if (*value == NULL) {
+      socket->read_buf_len = pos; // keep the line for the next read
+      return 1;
+    }
+    memcpy(*value, buf, line_len);
+    (*value)[line_len] = '\0';
+  }
+  if (value_len != NULL) *value_len = line_len;
+
+  size_t leftover = pos - line_len;
+  if (leftover > 0) memmove(buf, buf + line_len, leftover);
+  socket->read_buf_len = leftover;
   return 0;
 }
 

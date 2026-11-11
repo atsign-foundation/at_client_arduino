@@ -169,7 +169,12 @@ void atclient_stop_atserver_connection(atclient *ctx) {
   /*
    * 2. Stop the atserver connection
    */
-  if (atclient_is_atserver_connection_started(ctx)) {
+  // A connect that failed part-way left the connection enabled, holding its
+  // TLS client and read buffer, without ever being marked started. Free by
+  // what the connection holds rather than by the started flag: zeroing an
+  // enabled connection leaked about 6 KB on an ESP32 for every reconnect that
+  // failed, until the heap could no longer carry a TLS handshake at all.
+  if (atclient_is_atserver_connection_started(ctx) || ctx->atserver_connection._is_connection_enabled) {
     atclient_connection_free(&ctx->atserver_connection);
   }
   memset(&(ctx->atserver_connection), 0, sizeof(atclient_connection));
