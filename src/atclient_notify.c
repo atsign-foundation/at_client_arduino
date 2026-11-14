@@ -189,12 +189,14 @@ int atclient_notify(atclient *ctx, const atclient_notify_params *params, char **
       size_t datalen = recvlen - strlen("data:");
       if (datalen > 36) {
         atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "Notification id too long\n");
-        return 1;
+        ret = 1;
+        goto exit;
       }
       *notification_id = malloc(sizeof(char) * (datalen + 1));
       if (*notification_id == NULL) {
         atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "malloc failed\n");
-        return 1;
+        ret = 1;
+        goto exit;
       }
       memcpy(*notification_id, data, datalen);
       (*notification_id)[datalen] = '\0';

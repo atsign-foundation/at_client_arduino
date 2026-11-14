@@ -306,7 +306,7 @@ int atclient_get_shared_encryption_key_shared_by_other(atclient *ctx, const char
 
   if ((ret = atclient_connection_send(&(ctx->atserver_connection), (unsigned char *)command, strlen((char *)command),
                                       recv, recv_size, &recv_len)) != 0) {
-    return ret;
+    goto exit;
   }
 
   /*
@@ -319,7 +319,7 @@ int atclient_get_shared_encryption_key_shared_by_other(atclient *ctx, const char
     if (atclient_string_utils_starts_with(response, "error:AT0015-key not found")) {
       ret = ATCLIENT_ERR_AT0015_KEY_NOT_FOUND;
       atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "key not found\n");
-      return ret;
+      goto exit;
     }
   }
   memset(shared_encryption_key_encrypted_base64, 0,
@@ -330,7 +330,7 @@ int atclient_get_shared_encryption_key_shared_by_other(atclient *ctx, const char
                                    shared_encryption_key_encrypted_base64, shared_encryption_key_encrypted_base64_size,
                                    &shared_encryption_key_encrypted_base64_len)) != 0) {
     atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "atchops_base64_decode: %d\n", ret);
-    return ret;
+    goto exit;
   }
 
   memset(shared_encryption_key_encrypted, 0, sizeof(unsigned char) * shared_encryption_key_encrypted_size);
@@ -340,7 +340,7 @@ int atclient_get_shared_encryption_key_shared_by_other(atclient *ctx, const char
                                  shared_encryption_key_encrypted_base64_len, shared_encryption_key_encrypted,
                                  shared_encryption_key_encrypted_size, &shared_encryption_key_encrypted_len)) != 0) {
     atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "atchops_rsa_decrypt: %d\n", ret);
-    return ret;
+    goto exit;
   }
 
   const size_t shared_encryption_key_shared_by_other_size = ATCHOPS_AES_256 / 8;
@@ -348,9 +348,10 @@ int atclient_get_shared_encryption_key_shared_by_other(atclient *ctx, const char
                                    shared_encryption_key_shared_by_other, shared_encryption_key_shared_by_other_size,
                                    NULL)) != 0) {
     atlogger_log(TAG, ATLOGGER_LOGGING_LEVEL_ERROR, "atchops_base64_decode: %d\n", ret);
-    return ret;
+    goto exit;
   }
 
+  ret = 0;
 exit: {
   free(command);
   free(sender_atsign_with_at);
